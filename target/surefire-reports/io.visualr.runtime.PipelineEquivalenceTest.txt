@@ -1,4 +1,0 @@
--------------------------------------------------------------------------------
-Test set: io.visualr.runtime.PipelineEquivalenceTest
--------------------------------------------------------------------------------
-Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 7.653 s -- in io.visualr.runtime.PipelineEquivalenceTest
