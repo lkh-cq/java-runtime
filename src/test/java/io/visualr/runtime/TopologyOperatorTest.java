@@ -30,7 +30,7 @@ class TopologyOperatorTest {
     void executeLanesDefaultIdentity() {
         TopologyCarrier carrier = TopologyCarrier.fromPal(sample4());
         Snapshot snap = Snapshot.of(carrier);
-        Map<String, LaneResult> deltas = TopologyOperator.executeLanes(snap, null);
+        Map<String, LaneResult> deltas = TopologyOperator.executeLanes(snap);
 
         assertEquals(List.of("A", "B", "C", "D", "e"), List.copyOf(deltas.keySet()));
         // identity: orbit endpoints preserved
@@ -46,7 +46,7 @@ class TopologyOperatorTest {
     void barrierPassesAndErrors() {
         TopologyCarrier carrier = TopologyCarrier.fromPal(sample4());
         Snapshot snap = Snapshot.of(carrier);
-        Map<String, LaneResult> deltas = TopologyOperator.executeLanes(snap, null);
+        Map<String, LaneResult> deltas = TopologyOperator.executeLanes(snap);
         assertTrue(TopologyOperator.barrier(deltas));
 
         Map<String, LaneResult> missingE = new LinkedHashMap<>(deltas);
@@ -60,7 +60,7 @@ class TopologyOperatorTest {
     void reconcileIdentityPromotesToIdle() {
         TopologyCarrier carrier = TopologyCarrier.fromPal(sample4());
         Snapshot snap = Snapshot.of(carrier);
-        Map<String, LaneResult> deltas = TopologyOperator.executeLanes(snap, null);
+        Map<String, LaneResult> deltas = TopologyOperator.executeLanes(snap);
         ReconcileResult rec = TopologyOperator.reconcile(deltas, carrier.cell(),
                 sample4().mappingPackId());
 
@@ -125,7 +125,7 @@ class TopologyOperatorTest {
 
         Snapshot snap = Snapshot.of(carrier);
         ReconcileResult rec = TopologyOperator.reconcile(
-                TopologyOperator.executeLanes(snap, null), carrier.cell(),
+                TopologyOperator.executeLanes(snap), carrier.cell(),
                 sample4().mappingPackId());
         TopologyCarrier out = TopologyOperator.commit(rec, carrier);
         assertEquals("e", out.cell().singularity());
@@ -153,7 +153,7 @@ class TopologyOperatorTest {
     @Test
     void fullPipelineIdentityKeepsPal() {
         PalState pal = sample4();
-        PipelineResult res = TopologyOperator.runPipeline(pal, null);
+        PipelineResult res = TopologyOperator.runPipeline(pal);
         assertTrue(res.barrierOk());
         assertTrue(res.reconciled().ok());
         assertEquals("promote", res.reconciled().action());

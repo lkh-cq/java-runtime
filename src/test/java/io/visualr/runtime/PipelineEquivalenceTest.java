@@ -56,24 +56,28 @@ class PipelineEquivalenceTest {
             "suppressMessages(pkgload::load_all(\"" + R_PACKAGE + "\"))\n"
             + "p1 <- new_pal_state(c(\"A\",\"B\",\"C\",\"D\"), \"e\")\n"
             + "p2 <- new_pal_state(c(\"A\",\"B\",\"C\",\"D\",\"E\"), \"F\")\n"
+            + "p3 <- new_pal_state(c(\"A\",\"B\",\"C\",\"D\"), \"e\")\n"
             + "res1 <- run_topology_pipeline(p1)\n"
             + "res2 <- run_topology_pipeline(p2)\n"
+            + "res3 <- run_topology_pipeline(p3, \"rotate\")\n"
             + "out <- c(paste(res1$reconciled$action, res1$reconciled$phase, sep=\"|\"),\n"
             + "         format_pal(res1$pal_out),\n"
             + "         paste(res2$reconciled$action, res2$reconciled$phase, sep=\"|\"),\n"
-            + "         format_pal(res2$pal_out))\n"
+            + "         format_pal(res2$pal_out),\n"
+            + "         paste(res3$reconciled$action, res3$reconciled$phase, sep=\"|\"),\n"
+            + "         format_pal(res3$pal_out))\n"
             + "cat(paste(out, collapse=\"" + SEP + "\"))\n";
 
     @Test
     void pipelineReencodedPalByteMatchesR() {
         String rOut = runR(R_PIPELINE).trim();
         String[] rSamples = rOut.split(java.util.regex.Pattern.quote(SEP));
-        assertEquals(4, rSamples.length, "R must emit 4 samples");
+        assertEquals(6, rSamples.length, "R must emit 6 samples");
 
         // S4 identity pipeline
         PalState p1 = PalState.of(List.of("A", "B", "C", "D"), "e",
                 PalState.DEFAULT_MAPPING_PACK_ID, Map.of());
-        PipelineResult j1 = TopologyOperator.runPipeline(p1, null);
+        PipelineResult j1 = TopologyOperator.runPipeline(p1);
         assertEquals(rSamples[0].trim(), "promote|idle", "R S4 reconcile");
         assertEquals("promote", j1.reconciled().action());
         assertEquals("idle", j1.reconciled().phase());
@@ -84,12 +88,20 @@ class PipelineEquivalenceTest {
         // semantics; every orbit gets a lane, no shell dropped)
         PalState p2 = PalState.of(List.of("A", "B", "C", "D", "E"), "F",
                 PalState.DEFAULT_MAPPING_PACK_ID, Map.of());
-        PipelineResult j2 = TopologyOperator.runPipeline(p2, null);
+        PipelineResult j2 = TopologyOperator.runPipeline(p2);
         assertEquals(rSamples[2].trim(), "promote|idle", "R S5 reconcile");
         assertEquals(rSamples[3].trim(), PalCodec.format(j2.palOut()),
                 "S5 re-encoded PAL must byte-match R");
         // dynamic lanes keep all five shells (Branch-1 audit 2026-08-09)
         assertEquals(5, j2.palOut().shells().size(),
                 "S5 dynamic-lane pipeline keeps every shell");
+
+        // rotate kernel pipeline: S4 with kernel-name spec
+        PipelineResult j3 = TopologyOperator.runPipeline(p1, "rotate");
+        assertEquals(rSamples[4].trim(), "promote|idle", "R rotate reconcile");
+        assertEquals(rSamples[5].trim(), PalCodec.format(j3.palOut()),
+                "rotate re-encoded PAL must byte-match R");
+        // rotate advances each shell token one step on the A->B->C->D->A cycle
+        assertEquals(List.of("B", "C", "D", "A"), j3.palOut().shells());
     }
 }

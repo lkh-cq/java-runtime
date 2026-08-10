@@ -86,6 +86,29 @@ public final class TopologyOperator {
         }
     }
 
+    /** Default execution: all lanes identity (mirror of R {@code execute_lanes_ops(snap)}). */
+    public static Map<String, LaneResult> executeLanes(Snapshot snap) {
+        return executeLanes(snap, (Map<String, LaneKernel>) null);
+    }
+
+    /**
+     * Kernel-name convenience: one kernel for ALL lanes
+     * (mirror of R {@code execute_lanes_ops(snap, "rotate")}).
+     */
+    public static Map<String, LaneResult> executeLanes(Snapshot snap, String kernelName) {
+        return executeLanes(snap, LaneKernelRegistry.laneKernels(kernelName));
+    }
+
+    /**
+     * Kernel-spec convenience: named list of kernel names or functions;
+     * missing labels default to identity (mirror of R
+     * {@code execute_lanes_ops(snap, list(A = "gamma", ...))}).
+     */
+    public static Map<String, LaneResult> executeLanesSpec(Snapshot snap,
+                                                           Map<String, Object> kernelSpec) {
+        return executeLanes(snap, LaneKernelRegistry.laneKernels(kernelSpec));
+    }
+
     /**
      * Fixed-lane variant (mirror of R {@code execute_lanes}): the default
      * kernel set is exactly A/B/C/D/e — with identity kernels a deeper
@@ -290,5 +313,20 @@ public final class TopologyOperator {
         TopologyCarrier carrierOut = commit(rec, carrierIn);
         PalState palOut = cellToPal(carrierOut.cell(), pal);
         return new PipelineResult(carrierIn, snap, deltas, barrierOk, rec, carrierOut, palOut);
+    }
+
+    /** Pipeline with default identity kernels (mirror of R {@code run_topology_pipeline(pal)}). */
+    public static PipelineResult runPipeline(PalState pal) {
+        return runPipeline(pal, (Map<String, LaneKernel>) null);
+    }
+
+    /** Pipeline with a single kernel name for all lanes (e.g. "rotate"). */
+    public static PipelineResult runPipeline(PalState pal, String kernelName) {
+        return runPipeline(pal, LaneKernelRegistry.laneKernels(kernelName));
+    }
+
+    /** Pipeline with a kernel spec map (names or functions, identity default). */
+    public static PipelineResult runPipelineSpec(PalState pal, Map<String, Object> kernelSpec) {
+        return runPipeline(pal, LaneKernelRegistry.laneKernels(kernelSpec));
     }
 }
