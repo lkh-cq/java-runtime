@@ -40,8 +40,12 @@
 
 ## 待办(下一刀)
 
-- [ ] git 远程推送(GitHub SSH 已切,仓库待定)
+- [ ] CI 推送:.github/workflows/ci.yml 已备(JDK21+R+pkgload),推送需 `gh auth refresh --scopes workflow`(手动)后 push
 - [ ] 网络传输/包路由(DEVELOPMENT_PLAN §8 剩余职责,部署环境依赖)
+
+## 远程(2026-08-10)
+
+- https://github.com/lkh-cq/java-runtime(public,master 已推送)
 
 ## Benchmark(2026-08-10 实测)
 
