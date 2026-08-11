@@ -23,7 +23,9 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends r-base
-          Rscript -e 'install.packages("pkgload", repos="https://cloud.r-project.org", quiet=TRUE)'
+          # sudo: R's default lib (/usr/local/lib/R/site-library) is not
+          # writable by the non-root runner (prior failure evidence)
+          sudo Rscript -e 'install.packages("pkgload", repos="https://cloud.r-project.org", quiet=TRUE)'
 
       - name: Checkout visualR reference package
         run: |
