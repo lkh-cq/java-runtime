@@ -26,8 +26,8 @@
 
 ## 测试总账
 
-- 41/41 全绿,BUILD SUCCESS(2026-08-10 Asia/Shanghai)
-- R 等价性:Java format == R format_pal(4 样例字节级);pipeline pal_out == R run_topology_pipeline(S4/S5/rotate 字节级);jiugong grid/mirror_addr 与 R 字节级一致
+- 44/44 全绿,BUILD SUCCESS(2026-08-10 Asia/Shanghai)
+- R 等价性:Java format == R format_pal(4 样例字节级);pipeline pal_out == R run_topology_pipeline(S4/S5/rotate 字节级);jiugong grid/mirror_addr 与 R 字节级一致;RWorker 进程编排结果与 Java 内联/串行交叉验证一致
 
 ## 与 R 对齐的已知决策
 
@@ -40,6 +40,6 @@
 
 ## 待办(下一刀)
 
-- [ ] orchestration 层(长驻服务/worker 进程编排,DEVELOPMENT_PLAN §8 主角色)
+- [ ] RWorker 长驻进程复用(当前每任务新进程,~3s 启动;进程池/长驻协议优化)
 - [ ] git 远程推送(GitHub SSH 已切,仓库待定)
-- [ ] 并发压力测试(lanes 并发确定性 vs 串行,对齐 lane_concurrency.R)
+- [ ] 网络传输/缓存管理/包路由(DEVELOPMENT_PLAN §8 剩余职责)
