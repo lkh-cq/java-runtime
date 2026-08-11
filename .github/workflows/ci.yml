@@ -9,7 +9,7 @@ jobs:
   test:
     runs-on: ubuntu-latest
     env:
-      VISUALR_REPO: ${{ vars.VISUALR_REPO || 'https://github.com/yukikaze404/visualR.git' }}
+      VISUALR_REPO: ${{ vars.VISUALR_REPO || 'https://github.com/lkh-cq/visualR.git' }}
     steps:
       - uses: actions/checkout@v4
 
