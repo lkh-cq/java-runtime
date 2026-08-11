@@ -26,12 +26,12 @@ public final class TopologyCarrier {
     private final List<String> axes;
     private final Map<String, Object> topologyMap; // singularity + orbits
     private final boolean[][] activeMask;          // 3x3 canonical carrier
-    private final int[][] projection;              // optional 3x3 jiugong view
+    private final String[][] projection;           // optional 3x3 jiugong view
     private final Map<String, Object> payload;
 
     private TopologyCarrier(PalState pal, TopologyCell cell, List<String> axes,
                             Map<String, Object> topologyMap, boolean[][] activeMask,
-                            int[][] projection, Map<String, Object> payload) {
+                            String[][] projection, Map<String, Object> payload) {
         this.pal = pal;
         this.cell = cell;
         this.axes = Collections.unmodifiableList(axes);
@@ -52,12 +52,13 @@ public final class TopologyCarrier {
      * @param pal        source of truth
      * @param cell       restored cell; null -&gt; {@link TopologyCell#palToCell}
      * @param axes       axis names; null -&gt; space/operator/phase/channel
-     * @param projection optional 3x3 view; null -&gt; skipped in this slice
-     *                   (R computes pal_to_jiugong grid; Java projection
-     *                   materialization lands in a later slice)
+     * @param projection optional 3x3 view; null -&gt; auto-materialized from
+     *                   {@link PalProjection#palToJiugong} when the PAL is
+     *                   S_4 (unfolded length 9), else null (mirror of R's
+     *                   tryCatch(pal_to_jiugong(pal)$grid, error=NULL))
      */
     public static TopologyCarrier fromPal(PalState pal, TopologyCell cell,
-                                          List<String> axes, int[][] projection) {
+                                          List<String> axes, String[][] projection) {
         TopologyCell c = (cell != null) ? cell : TopologyCell.palToCell(pal);
         List<String> ax = (axes != null) ? axes
                 : List.of("space", "operator", "phase", "channel");
@@ -91,7 +92,18 @@ public final class TopologyCarrier {
             Arrays.fill(row, true);
         }
 
-        return new TopologyCarrier(pal, c, ax, topo, mask, projection,
+        // projection: auto-materialize the S_4 -> 3x3 jiugong view when
+        // the PAL supports it; otherwise null (mirror of R tryCatch).
+        String[][] proj = projection;
+        if (proj == null) {
+            try {
+                proj = PalProjection.palToJiugong(pal);
+            } catch (IllegalArgumentException ignored) {
+                proj = null;
+            }
+        }
+
+        return new TopologyCarrier(pal, c, ax, topo, mask, proj,
                 new LinkedHashMap<>());
     }
 
@@ -105,7 +117,7 @@ public final class TopologyCarrier {
 
     public boolean[][] activeMask() { return activeMask; }
 
-    public int[][] projection() { return projection; }
+    public String[][] projection() { return projection; }
 
     public Map<String, Object> payload() { return payload; }
 

@@ -59,6 +59,13 @@ public final class TopologyOperator {
         List<String> laneNames = new ArrayList<>(cell.orbits().keySet());
         laneNames.add("e");
         String phase = cell.phase();
+        // Resolve the mapping pack for this cell (mirror of R
+        // execute_lanes_ops tryCatch(pal_resolve_pack(...), NULL)).
+        // NOTE: R's current implementation passes the FORMAT STRING in
+        // cell$origin$pal, so R's pack is always NULL (a latent R bug);
+        // Java resolves the DESIGN INTENT — parse the stored PAL, resolve
+        // its mapping_pack_id. Default-pack behavior is identical.
+        Map<String, Object> pack = resolvePackMap(cell);
 
         Map<String, LaneKernel> ks = new LinkedHashMap<>();
         if (kernels != null) {
@@ -74,7 +81,7 @@ public final class TopologyOperator {
             for (String name : laneNames) {
                 String[] input = laneInput(cell, name);
                 LaneKernel kernel = (kernels == null) ? LaneKernel.IDENTITY : ks.get(name);
-                futures.put(name, CompletableFuture.supplyAsync(() -> kernel.apply(input, phase, null), pool));
+                futures.put(name, CompletableFuture.supplyAsync(() -> kernel.apply(input, phase, pack), pool));
             }
             Map<String, LaneResult> deltas = new LinkedHashMap<>();
             for (String name : laneNames) {
@@ -84,6 +91,39 @@ public final class TopologyOperator {
         } finally {
             pool.shutdown();
         }
+    }
+
+    /**
+     * Resolve the mapping pack for a PAL state by its mapping_pack_id
+     * (mirror of R {@code pal_resolve_pack}; FAILS CLOSED on unknown id).
+     */
+    public static MappingPack palResolvePack(PalState pal) {
+        return MappingPackRegistry.resolve(pal.mappingPackId());
+    }
+
+    /** Resolve the pack from a cell's stored origin PAL; null when unavailable. */
+    private static Map<String, Object> resolvePackMap(TopologyCell cell) {
+        try {
+            Object stored = cell.origin().get("pal");
+            if (stored instanceof String s) {
+                MappingPack mp = MappingPackRegistry.resolve(PalCodec.parse(s).mappingPackId());
+                return packToMap(mp);
+            }
+        } catch (RuntimeException ignored) {
+            // mirror R tryCatch(..., error = function(e) NULL)
+        }
+        return null;
+    }
+
+    /** Flatten a MappingPack to the kernel-visible map (R pack$<field> access). */
+    private static Map<String, Object> packToMap(MappingPack pack) {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("complement_table", pack.complementTable());
+        m.put("orbit_table", pack.orbitTable());
+        m.put("expand_order", pack.expandOrder());
+        m.put("frozen_symbols", pack.frozenSymbols());
+        m.put("version", pack.version());
+        return m;
     }
 
     /** Default execution: all lanes identity (mirror of R {@code execute_lanes_ops(snap)}). */

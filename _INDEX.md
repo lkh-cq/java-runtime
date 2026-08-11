@@ -26,8 +26,8 @@
 
 ## 测试总账
 
-- 18/18 全绿,BUILD SUCCESS(2026-08-10 22:2x Asia/Shanghai)
-- R 等价性:Java format == R format_pal(4 样例字节级);pipeline pal_out == R run_topology_pipeline(S4/S5 字节级)
+- 41/41 全绿,BUILD SUCCESS(2026-08-10 Asia/Shanghai)
+- R 等价性:Java format == R format_pal(4 样例字节级);pipeline pal_out == R run_topology_pipeline(S4/S5/rotate 字节级);jiugong grid/mirror_addr 与 R 字节级一致
 
 ## 与 R 对齐的已知决策
 
@@ -35,11 +35,11 @@
 2. Boolean 序列化 l:TRUE/l:FALSE(R 大写)
 3. run_topology_pipeline 用 execute_lanes_ops 动态 lanes(每 orbit 一个 lane,S5 保全部 shell)——非 execute_lanes 固定 4 lanes
 4. format 无尾换行(paste collapse="\n")
+5. R paste(matrix) 列优先 → 等价性测试展平用列序
+6. R 的 pack 解析链路实际恒 NULL(cell$origin$pal 是 format 字符串,$mapping_pack_id 为 NULL)——Java 按设计意图解析(默认行为等价,自定义 pack 优于 R bug),已在 TopologyOperator 注释标注
 
 ## 待办(下一刀)
 
-- [ ] lane_kernels 字符串名字解析("rotate" 等)对齐 R orbit_operators.R
-- [ ] pal_resolve_pack 映射包解析(Java 侧 pack 目前传 null)
-- [ ] jiugong projection 物化(pal_to_jiugong)
-- [ ] 长驻服务/调度/worker 进程编排(DEVELOPMENT_PLAN §8 orchestration 角色)
-- [ ] git 提交 + CI(对齐 visualR 主仓库惯例)
+- [ ] orchestration 层(长驻服务/worker 进程编排,DEVELOPMENT_PLAN §8 主角色)
+- [ ] git 远程推送(GitHub SSH 已切,仓库待定)
+- [ ] 并发压力测试(lanes 并发确定性 vs 串行,对齐 lane_concurrency.R)

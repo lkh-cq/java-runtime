@@ -15,11 +15,11 @@ public final class Snapshot {
     private final TopologyCell cell;
     private final Map<String, Object> topologyMap;
     private final boolean[][] activeMask;
-    private final int[][] projection;
+    private final String[][] projection;
     private final boolean frozen;
 
     private Snapshot(TopologyCell cell, Map<String, Object> topologyMap,
-                     boolean[][] activeMask, int[][] projection) {
+                     boolean[][] activeMask, String[][] projection) {
         this.cell = cell;
         this.topologyMap = topologyMap;
         this.activeMask = activeMask;
@@ -42,7 +42,7 @@ public final class Snapshot {
 
     public boolean[][] activeMask() { return activeMask; }
 
-    public int[][] projection() { return projection; }
+    public String[][] projection() { return projection; }
 
     public boolean frozen() { return frozen; }
 
