@@ -32,7 +32,8 @@ jobs:
       - name: Checkout visualR reference package
         run: |
           git clone --depth 1 "$VISUALR_REPO" /tmp/visualR
-          echo "visualR_R_PACKAGE=/tmp/visualR/visualR" >> "$GITHUB_ENV"
+          # lkh-cq/visualR repo ROOT is the R package (DESCRIPTION at root)
+          echo "visualR_R_PACKAGE=/tmp/visualR" >> "$GITHUB_ENV"
 
       - name: Maven build + tests
         run: mvn -B test
