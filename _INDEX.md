@@ -40,6 +40,11 @@
 
 ## 待办(下一刀)
 
-- [ ] RWorker 长驻进程复用(当前每任务新进程,~3s 启动;进程池/长驻协议优化)
 - [ ] git 远程推送(GitHub SSH 已切,仓库待定)
-- [ ] 网络传输/缓存管理/包路由(DEVELOPMENT_PLAN §8 剩余职责)
+- [ ] 网络传输/包路由(DEVELOPMENT_PLAN §8 剩余职责,部署环境依赖)
+
+## Benchmark(2026-08-10 实测)
+
+- fresh-process RWorker: 3811.8 ms/task(pkgload 每次启动加载)
+- persistent PersistentRWorker: 17.2 ms/task
+- speedup: 221.6x(bench/Bench.java 可复现)
