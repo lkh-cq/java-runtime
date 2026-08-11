@@ -100,6 +100,13 @@ public final class LaneKernelRegistry {
      */
     public static Map<String, LaneKernel> laneKernels(Object spec) {
         Map<String, LaneKernel> out = new LinkedHashMap<>();
+        if (spec == null) {
+            // R: kernels = NULL -> all identity
+            for (String label : ALL_LANES) {
+                out.put(label, LaneKernel.IDENTITY);
+            }
+            return out;
+        }
         if (spec instanceof String name) {
             LaneKernel fn = get(name);
             for (String label : ALL_LANES) {
