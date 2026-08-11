@@ -22,9 +22,9 @@ jobs:
       - name: Set up R + pkgload (for R-equivalence gates)
         run: |
           sudo apt-get update
-          # r-base-dev: pkgload's C deps (rlang etc.) need build headers;
-          # prior failure was a silently failed compile (quiet=TRUE masked it)
-          sudo apt-get install -y --no-install-recommends r-base r-base-dev
+          # r-base-dev: C build headers; libuv1-dev: processx needs uv.h
+          # (pkgload dependency chain) — prior failures were silent compile errors
+          sudo apt-get install -y --no-install-recommends r-base r-base-dev libuv1-dev libcurl4-openssl-dev libssl-dev
           sudo Rscript -e 'install.packages("pkgload", repos="https://cloud.r-project.org")'
           # explicit verification — the equivalence gates fail hard if this breaks
           Rscript -e 'stopifnot(requireNamespace("pkgload", quietly=TRUE))'
