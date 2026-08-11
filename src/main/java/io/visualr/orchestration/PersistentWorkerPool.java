@@ -70,6 +70,7 @@ public final class PersistentWorkerPool implements AutoCloseable {
         if (idx < 0) {
             throw new IllegalStateException("worker not in pool");
         }
+        dead.forceDestroy(); // gate review P2-4: never leak a stuck/dead R process
         workers.set(idx, newWorker());
         return workers.get(idx);
     }

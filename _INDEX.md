@@ -26,8 +26,9 @@
 
 ## 测试总账
 
-- 44/44 全绿,BUILD SUCCESS(2026-08-10 Asia/Shanghai)
-- R 等价性:Java format == R format_pal(4 样例字节级);pipeline pal_out == R run_topology_pipeline(S4/S5/rotate 字节级);jiugong grid/mirror_addr 与 R 字节级一致;RWorker 进程编排结果与 Java 内联/串行交叉验证一致
+- 69/69 全绿,BUILD SUCCESS(2026-08-11 Asia/Shanghai)
+- R 等价性:Java format == R format_pal(字节级,含整值 double/科学计数 provenance);pipeline pal_out == R run_topology_pipeline(S4/S5/rotate 字节级);jiugong grid/mirror_addr 与 R 字节级一致;RWorker 进程编排结果与 Java 内联/串行交叉验证一致
+- Claude Code 门控(2026-08-11):FAIL → 修复 1 P0 + 3 P1 + 10 P2 后 69/69 复绿
 
 ## 与 R 对齐的已知决策
 
@@ -37,6 +38,9 @@
 4. format 无尾换行(paste collapse="\n")
 5. R paste(matrix) 列优先 → 等价性测试展平用列序
 6. R 的 pack 解析链路实际恒 NULL(cell$origin$pal 是 format 字符串,$mapping_pack_id 为 NULL)——Java 按设计意图解析(默认行为等价,自定义 pack 优于 R bug),已在 TopologyOperator 注释标注
+7. Double 序列化按 R as.character 语义(d:1 整值无小数点、d:1e-07 科学计数 e±NN、scipen 选短)——PalCodec.rDouble
+8. commit 投影复用旧载体(镜像 R commit 传 carrier$projection)——投影是原始 pal 的 3×3 视图,不随 reconciled cell 重算(门控 P2-10 确认镜像)
+9. 门控修复:P0 worker 错误帧终止行;P1 CI env 路径/未知 pack fail-closed;P2 trim 去掩/异常帧统一/共享 lane 池/worker 销毁/校验补洞/快照深拷贝/截断边界/死参数清理
 
 ## 待办(下一刀)
 

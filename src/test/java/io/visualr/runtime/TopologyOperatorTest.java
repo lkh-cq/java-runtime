@@ -61,8 +61,7 @@ class TopologyOperatorTest {
         TopologyCarrier carrier = TopologyCarrier.fromPal(sample4());
         Snapshot snap = Snapshot.of(carrier);
         Map<String, LaneResult> deltas = TopologyOperator.executeLanes(snap);
-        ReconcileResult rec = TopologyOperator.reconcile(deltas, carrier.cell(),
-                sample4().mappingPackId());
+        ReconcileResult rec = TopologyOperator.reconcile(deltas, carrier.cell());
 
         assertTrue(rec.ok());
         assertTrue(rec.conflicts().isEmpty());
@@ -77,8 +76,7 @@ class TopologyOperatorTest {
         TopologyCarrier carrier = TopologyCarrier.fromPal(sample4());
         Map<String, LaneResult> onlyE = new LinkedHashMap<>();
         onlyE.put("e", LaneResult.of(new String[] {"e"}, "idle", "identity"));
-        ReconcileResult rec = TopologyOperator.reconcile(onlyE, carrier.cell(),
-                sample4().mappingPackId());
+        ReconcileResult rec = TopologyOperator.reconcile(onlyE, carrier.cell());
         assertFalse(rec.ok());
         assertEquals("reject", rec.action());
         assertTrue(rec.conflicts().contains("no orbit lanes"));
@@ -105,8 +103,7 @@ class TopologyOperatorTest {
         Map<String, LaneResult> deltas = TopologyOperator.executeLanes(snap, kernels);
 
         assertEquals("y", deltas.get("A").endpoints()[0]); // rotated
-        ReconcileResult rec = TopologyOperator.reconcile(deltas, carrier.cell(),
-                sample4().mappingPackId());
+        ReconcileResult rec = TopologyOperator.reconcile(deltas, carrier.cell());
         assertTrue(rec.ok());
         // not all identity -> phase stays "running" (no transition to idle)
         assertEquals("running", rec.phase());
@@ -118,15 +115,13 @@ class TopologyOperatorTest {
         TopologyCarrier carrier = TopologyCarrier.fromPal(sample4());
         Map<String, LaneResult> onlyE = new LinkedHashMap<>();
         onlyE.put("e", LaneResult.of(new String[] {"e"}, "idle", "identity"));
-        ReconcileResult rejected = TopologyOperator.reconcile(onlyE, carrier.cell(),
-                sample4().mappingPackId());
+        ReconcileResult rejected = TopologyOperator.reconcile(onlyE, carrier.cell());
         assertThrows(IllegalStateException.class,
                 () -> TopologyOperator.commit(rejected, carrier));
 
         Snapshot snap = Snapshot.of(carrier);
         ReconcileResult rec = TopologyOperator.reconcile(
-                TopologyOperator.executeLanes(snap), carrier.cell(),
-                sample4().mappingPackId());
+                TopologyOperator.executeLanes(snap), carrier.cell());
         TopologyCarrier out = TopologyOperator.commit(rec, carrier);
         assertEquals("e", out.cell().singularity());
         assertEquals(carrier.axes(), out.axes());
@@ -159,5 +154,14 @@ class TopologyOperatorTest {
         assertEquals("promote", res.reconciled().action());
         // identity pipeline: S_(t+1) PAL re-encodes to the same canonical state
         assertEquals(PalCodec.format(pal), PalCodec.format(res.palOut()));
+    }
+
+    @Test
+    void runPipelineUnknownPackFailsClosed() {
+        // gate review P1-2: unknown mapping pack id must error in the
+        // pipeline, not silently degrade to default semantics
+        PalState bad = PalState.of(List.of("A", "B", "C", "D"), "e",
+                "nonexistent-pack", Map.of());
+        assertThrows(IllegalArgumentException.class, () -> TopologyOperator.runPipeline(bad));
     }
 }

@@ -39,12 +39,12 @@ Orchestration (`io.visualr.orchestration`):
 export JAVA_HOME=$HOME/jdk/jdk-21.0.12+8
 export PATH=$JAVA_HOME/bin:$HOME/jdk/apache-maven-3.9.16/bin:$PATH
 cd /mnt/d/visualR/java-runtime
-mvn -B test          # 51 tests; R-equivalence gates require Rscript + pkgload
+mvn -B test          # 69 tests; R-equivalence gates require Rscript + pkgload
 ```
 
 R-equivalence tests invoke the reference package at `/mnt/d/visualR/visualR`
-(override with env `visualR_R_PACKAGE`). They FAIL loudly when R is missing —
-no silent degradation.
+(override with env `visualR_R_PACKAGE`, used by the tests and the R workers).
+They FAIL loudly when R is missing — no silent degradation.
 
 ## Benchmark
 

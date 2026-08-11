@@ -19,7 +19,9 @@ import org.junit.jupiter.api.Test;
  */
 class ProjectionEquivalenceTest {
 
-    private static final String R_PACKAGE = "/mnt/d/visualR/visualR";
+    /** R package root; override via env visualR_R_PACKAGE (CI clones elsewhere). */
+    private static final String R_PACKAGE =
+            System.getenv().getOrDefault("visualR_R_PACKAGE", "/mnt/d/visualR/visualR");
 
     private static final String SEP = "@@RS@@";
 
@@ -40,7 +42,8 @@ class ProjectionEquivalenceTest {
             if (code != 0) {
                 fail("Rscript exited " + code + ":\n" + out);
             }
-            return out.toString();
+            // strip only the trailing newline the reader added (never trim content)
+            return out.toString().replaceFirst("\n$", "");
         } catch (IOException | InterruptedException e) {
             throw new AssertionError("Rscript unavailable: " + e.getMessage(), e);
         }
@@ -52,7 +55,7 @@ class ProjectionEquivalenceTest {
                 "suppressMessages(pkgload::load_all(\"" + R_PACKAGE + "\"))\n"
                 + "p <- new_pal_state(c(\"A\",\"B\",\"C\",\"D\"), \"e\")\n"
                 + "jg <- pal_to_jiugong(p)\n"
-                + "cat(paste(jg$grid, collapse=\",\"))\n").trim();
+                + "cat(paste(jg$grid, collapse=\",\"))\n");
 
         PalState p = PalState.of(List.of("A", "B", "C", "D"), "e",
                 PalState.DEFAULT_MAPPING_PACK_ID, Map.of());
@@ -75,14 +78,14 @@ class ProjectionEquivalenceTest {
                 "suppressMessages(pkgload::load_all(\"" + R_PACKAGE + "\"))\n"
                 + "out <- vapply(1:3, function(r) vapply(1:3, function(c) "
                 + "paste(mirror_addr(r, c), collapse=\",\"), character(1)), character(3))\n"
-                + "cat(paste(out, collapse=\";\"))\n").trim();
+                + "cat(paste(out, collapse=\";\"))\n");
 
         String[] expected = rOut.split(";");
         int idx = 0;
         for (int r = 1; r <= 3; r++) {
             for (int c = 1; c <= 3; c++) {
                 int[] m = PalProjection.mirrorAddr(r, c);
-                assertEquals(expected[idx].trim(), m[0] + "," + m[1],
+                assertEquals(expected[idx], m[0] + "," + m[1],
                         "mirror_addr(" + r + "," + c + ")");
                 idx++;
             }

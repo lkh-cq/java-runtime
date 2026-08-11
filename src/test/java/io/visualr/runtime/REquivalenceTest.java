@@ -24,7 +24,9 @@ import org.junit.jupiter.api.Test;
  */
 class REquivalenceTest {
 
-    private static final String R_PACKAGE = "/mnt/d/visualR/visualR";
+    /** R package root; override via env visualR_R_PACKAGE (CI clones elsewhere). */
+    private static final String R_PACKAGE =
+            System.getenv().getOrDefault("visualR_R_PACKAGE", "/mnt/d/visualR/visualR");
 
     private static final String SEP = "@@RS@@";
 
@@ -46,7 +48,9 @@ class REquivalenceTest {
             if (code != 0) {
                 fail("Rscript exited " + code + ":\n" + out);
             }
-            return out.toString();
+            // strip only the trailing newline the reader added (never trim
+            // content — byte equality must not be masked, gate review P2-1)
+            return out.toString().replaceFirst("\n$", "");
         } catch (IOException | InterruptedException e) {
             throw new AssertionError("Rscript unavailable: " + e.getMessage(), e);
         }
@@ -56,7 +60,7 @@ class REquivalenceTest {
             "suppressMessages(pkgload::load_all(\"" + R_PACKAGE + "\"))\n"
             + "p1 <- new_pal_state(c(\"A\",\"B\",\"C\",\"D\"), \"e\")\n"
             + "p2 <- new_pal_state(character(0), \"e\")\n"
-            + "p3 <- new_pal_state(c(\"A\"), \"e\", provenance=list(clock=42L, rate=1.5, flag=TRUE, note=\"x\"))\n"
+            + "p3 <- new_pal_state(c(\"A\"), \"e\", provenance=list(clock=42L, rate=1.5, flag=TRUE, note=\"x\", whole=2.0, tiny=1e-7))\n"
             + "p4 <- new_pal_state(c(\"A\",\"B\",\"C\",\"D\",\"E\"), \"F\")\n"
             + "out <- c(format_pal(p1), format_pal(p2), format_pal(p3), format_pal(p4))\n"
             + "cat(paste(out, collapse=\"" + SEP + "\"))\n";
@@ -71,12 +75,14 @@ class REquivalenceTest {
         prov.put("rate", 1.5);
         prov.put("flag", true);
         prov.put("note", "x");
+        prov.put("whole", 2.0);   // integral double: R prints "2" (P1-3)
+        prov.put("tiny", 1e-7);   // scientific: R prints "1e-07" (P1-3)
         return PalState.of(List.of("A"), "e", PalState.DEFAULT_MAPPING_PACK_ID, prov);
     }
 
     @Test
     void javaFormatByteMatchesR() {
-        String rOut = runR(R_SCRIPT).trim();
+        String rOut = runR(R_SCRIPT);
         String[] rSamples = rOut.split(java.util.regex.Pattern.quote(SEP));
 
         String[] javaSamples = {
@@ -88,21 +94,18 @@ class REquivalenceTest {
 
         assertEquals(4, rSamples.length, "R must emit 4 samples");
         for (int i = 0; i < 4; i++) {
-            String r = rSamples[i].trim();
-            String j = javaSamples[i].trim();
-            assertEquals(r, j, "sample " + (i + 1) + " must byte-match R format_pal");
+            assertEquals(rSamples[i], javaSamples[i], "sample " + (i + 1) + " must byte-match R format_pal");
         }
     }
 
     @Test
     void javaParseOfRFormatThenReformatMatches() {
-        String rOut = runR(R_SCRIPT).trim();
+        String rOut = runR(R_SCRIPT);
         String[] rSamples = rOut.split(java.util.regex.Pattern.quote(SEP));
         for (int i = 0; i < rSamples.length; i++) {
-            String r = rSamples[i].trim();
-            PalState parsed = PalCodec.parse(r);
+            PalState parsed = PalCodec.parse(rSamples[i]);
             assertNotNull(parsed, "sample " + (i + 1) + " must parse");
-            assertEquals(r, PalCodec.format(parsed).trim(),
+            assertEquals(rSamples[i], PalCodec.format(parsed),
                     "sample " + (i + 1) + " reformat must equal R format");
         }
     }

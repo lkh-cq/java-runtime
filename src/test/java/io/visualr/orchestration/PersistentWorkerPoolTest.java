@@ -59,12 +59,21 @@ class PersistentWorkerPoolTest {
     }
 
     @Test
-    void errorSurvivesAndWorkerKeepsServing() {
+    void errorSurvivesAndWorkerKeepsServing() throws Exception {
         try (PersistentWorkerPool pool = new PersistentWorkerPool(1)) {
             // valid task first
             PalState ok = pool.submit(s4(), "identity").join();
             assertEquals(PalCodec.format(s4()), PalCodec.format(ok));
-            // pool still serves after the cycle
+            // inject a task error (unknown kernel -> R errors); the worker
+            // must reply with an error frame, NOT deadlock. Bound the wait
+            // so a regression fails after 30s instead of hanging forever.
+            try {
+                pool.submit(s4(), "nonexistent_kernel").get(30, java.util.concurrent.TimeUnit.SECONDS);
+                throw new AssertionError("expected task error to surface");
+            } catch (java.util.concurrent.ExecutionException expected) {
+                assertTrue(expected.getCause() instanceof IllegalStateException);
+            }
+            // pool still serves after the error cycle
             PalState again = pool.submit(s4(), "rotate").join();
             assertEquals(List.of("B", "C", "D", "A"), again.shells());
             assertTrue(pool.size() == 1);

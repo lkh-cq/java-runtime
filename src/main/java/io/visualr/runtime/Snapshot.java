@@ -27,13 +27,37 @@ public final class Snapshot {
         this.frozen = true;
     }
 
-    /** Freeze a carrier into a snapshot (mirror of R {@code snapshot}). */
+    /** Freeze a carrier into a snapshot (mirror of R {@code snapshot}).
+     *  Arrays are DEEP-COPIED so later carrier mutation cannot reach the
+     *  frozen view (gate review P2-7). */
     public static Snapshot of(TopologyCarrier carrier) {
         if (carrier == null) {
             throw new IllegalArgumentException("carrier must be a visualr_carrier");
         }
         return new Snapshot(carrier.cell(), carrier.topologyMap(),
-                carrier.activeMask(), carrier.projection());
+                deepCopy(carrier.activeMask()), deepCopy(carrier.projection()));
+    }
+
+    private static boolean[][] deepCopy(boolean[][] src) {
+        if (src == null) {
+            return null;
+        }
+        boolean[][] copy = new boolean[src.length][];
+        for (int i = 0; i < src.length; i++) {
+            copy[i] = src[i].clone();
+        }
+        return copy;
+    }
+
+    private static String[][] deepCopy(String[][] src) {
+        if (src == null) {
+            return null;
+        }
+        String[][] copy = new String[src.length][];
+        for (int i = 0; i < src.length; i++) {
+            copy[i] = src[i].clone();
+        }
+        return copy;
     }
 
     public TopologyCell cell() { return cell; }

@@ -67,7 +67,11 @@ public final class PalCodec {
         if (v instanceof Integer i) {
             return "i:" + i;
         } else if (v instanceof Double d) {
-            return "d:" + d;
+            // R's paste0("d:", 1.0) -> "d:1" (no decimal point on integral
+            // doubles), 1e-7 -> "d:1e-07", 1.23e7 -> "d:12300000" (scipen
+            // picks the shorter of plain vs scientific). Java Double.toString
+            // gives 1.0/1.0E-7/1.23E7 — NOT byte-equal; use rDouble.
+            return "d:" + rDouble(d);
         } else if (v instanceof Boolean b) {
             // R serializes logicals as l:TRUE / l:FALSE (uppercase).
             return "l:" + (b ? "TRUE" : "FALSE");
@@ -151,6 +155,45 @@ public final class PalCodec {
             mappingPackId = PalState.DEFAULT_MAPPING_PACK_ID;
         }
         return PalState.of(shells, core, mappingPackId, provenance);
+    }
+
+    /**
+     * R-style double formatting (mirror of R's {@code as.character} /
+     * {@code paste0} with default scipen/digits): integral doubles print
+     * without a decimal point; otherwise the shorter of plain and
+     * R-style scientific is chosen; scientific uses {@code e+NN} /
+     * {@code e-NN} (sign + at least two digits, lowercase e).
+     */
+    static String rDouble(double d) {
+        if (Double.isNaN(d) || Double.isInfinite(d)) {
+            return Double.toString(d); // not representable in R's atomic vector anyway
+        }
+        if (d == Math.floor(d) && Math.abs(d) < 1e15) {
+            return String.valueOf((long) d);
+        }
+        String javaStr = Double.toString(d); // shortest repr (1.5, 1.0E-7, ...)
+        String plain = new java.math.BigDecimal(d).toPlainString();
+        String sci = toRScientific(javaStr);
+        return plain.length() <= sci.length() ? plain : sci;
+    }
+
+    private static String toRScientific(String javaStr) {
+        int eIdx = javaStr.indexOf('E');
+        String mantissa;
+        int exponent;
+        if (eIdx >= 0) {
+            mantissa = javaStr.substring(0, eIdx);
+            exponent = Integer.parseInt(javaStr.substring(eIdx + 1));
+        } else {
+            mantissa = javaStr;
+            exponent = 0;
+        }
+        if (mantissa.endsWith(".0")) {
+            mantissa = mantissa.substring(0, mantissa.length() - 2);
+        }
+        String sign = exponent < 0 ? "-" : "+";
+        String digits = String.format("%02d", Math.abs(exponent));
+        return mantissa + "e" + sign + digits;
     }
 
     private static Object decodeType(String enc) {

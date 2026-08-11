@@ -32,6 +32,14 @@ public final class TopologyOperator {
     /** Default lane names: four orbit lanes + the singularity lane. */
     public static final List<String> DEFAULT_LANES = List.of("A", "B", "C", "D", "e");
 
+    /** Shared daemon pool for lane execution (gate review P2-3: no per-call churn). */
+    private static final ExecutorService LANE_POOL = java.util.concurrent.Executors.newFixedThreadPool(
+            8, r -> {
+                Thread t = new Thread(r, "visualr-lane");
+                t.setDaemon(true);
+                return t;
+            });
+
     private TopologyOperator() {}
 
     // =====================================================================
@@ -75,22 +83,17 @@ public final class TopologyOperator {
         }
 
         // One logical instant: submit all lanes, then gather in lane order.
-        ExecutorService pool = Executors.newFixedThreadPool(laneNames.size());
-        try {
-            Map<String, CompletableFuture<LaneResult>> futures = new LinkedHashMap<>();
-            for (String name : laneNames) {
-                String[] input = laneInput(cell, name);
-                LaneKernel kernel = (kernels == null) ? LaneKernel.IDENTITY : ks.get(name);
-                futures.put(name, CompletableFuture.supplyAsync(() -> kernel.apply(input, phase, pack), pool));
-            }
-            Map<String, LaneResult> deltas = new LinkedHashMap<>();
-            for (String name : laneNames) {
-                deltas.put(name, futures.get(name).join());
-            }
-            return deltas;
-        } finally {
-            pool.shutdown();
+        Map<String, CompletableFuture<LaneResult>> futures = new LinkedHashMap<>();
+        for (String name : laneNames) {
+            String[] input = laneInput(cell, name);
+            LaneKernel kernel = (kernels == null) ? LaneKernel.IDENTITY : ks.get(name);
+            futures.put(name, CompletableFuture.supplyAsync(() -> kernel.apply(input, phase, pack), LANE_POOL));
         }
+        Map<String, LaneResult> deltas = new LinkedHashMap<>();
+        for (String name : laneNames) {
+            deltas.put(name, futures.get(name).join());
+        }
+        return deltas;
     }
 
     /**
@@ -174,22 +177,17 @@ public final class TopologyOperator {
         TopologyCell cell = snap.cell();
         String phase = cell.phase();
 
-        ExecutorService pool = Executors.newFixedThreadPool(ks.size());
-        try {
-            Map<String, CompletableFuture<LaneResult>> futures = new LinkedHashMap<>();
-            for (String name : DEFAULT_LANES) {
-                String[] input = laneInput(cell, name);
-                LaneKernel kernel = ks.get(name);
-                futures.put(name, CompletableFuture.supplyAsync(() -> kernel.apply(input, phase, null), pool));
-            }
-            Map<String, LaneResult> deltas = new LinkedHashMap<>();
-            for (String name : DEFAULT_LANES) {
-                deltas.put(name, futures.get(name).join());
-            }
-            return deltas;
-        } finally {
-            pool.shutdown();
+        Map<String, CompletableFuture<LaneResult>> futures = new LinkedHashMap<>();
+        for (String name : DEFAULT_LANES) {
+            String[] input = laneInput(cell, name);
+            LaneKernel kernel = ks.get(name);
+            futures.put(name, CompletableFuture.supplyAsync(() -> kernel.apply(input, phase, null), LANE_POOL));
         }
+        Map<String, LaneResult> deltas = new LinkedHashMap<>();
+        for (String name : DEFAULT_LANES) {
+            deltas.put(name, futures.get(name).join());
+        }
+        return deltas;
     }
 
     private static String[] laneInput(TopologyCell cell, String name) {
@@ -243,7 +241,7 @@ public final class TopologyOperator {
      * different position (flag), phase transition, closure.
      */
     public static ReconcileResult reconcile(Map<String, LaneResult> deltas,
-                                            TopologyCell cell, String mappingPackId) {
+                                            TopologyCell cell) {
         List<String> laneNames = new ArrayList<>(deltas.keySet());
         laneNames.remove("e");
 
@@ -306,6 +304,10 @@ public final class TopologyOperator {
             throw new IllegalStateException("commit: reconciled state rejected (fail-closed)");
         }
         // S_(t+1): new carrier with the reconciled cell, same pal lineage.
+        // NOTE (gate review P2-10): projection is carried over unchanged,
+        // mirroring R's commit (new_topology_carrier(projection = carrier$projection));
+        // the projection is the ORIGINAL pal's 3x3 view, not re-derived from
+        // the reconciled cell — this matches R exactly and is documented in _INDEX.
         return TopologyCarrier.fromPal(carrier.pal(), reconciled.reconciledCell(),
                 carrier.axes(), carrier.projection());
     }
@@ -345,11 +347,15 @@ public final class TopologyOperator {
      */
     public static PipelineResult runPipeline(PalState pal,
                                              Map<String, LaneKernel> kernels) {
+        // FAIL-CLOSED gate (gate review P1-2): an unknown mapping pack id
+        // must error here, not silently degrade to default semantics inside
+        // executeLanes (which mirrors R's tryCatch-NULL at the lane level).
+        MappingPackRegistry.resolve(pal.mappingPackId());
         TopologyCarrier carrierIn = TopologyCarrier.fromPal(pal);
         Snapshot snap = Snapshot.of(carrierIn);
         Map<String, LaneResult> deltas = executeLanes(snap, kernels);
         boolean barrierOk = barrier(deltas);
-        ReconcileResult rec = reconcile(deltas, carrierIn.cell(), pal.mappingPackId());
+        ReconcileResult rec = reconcile(deltas, carrierIn.cell());
         TopologyCarrier carrierOut = commit(rec, carrierIn);
         PalState palOut = cellToPal(carrierOut.cell(), pal);
         return new PipelineResult(carrierIn, snap, deltas, barrierOk, rec, carrierOut, palOut);

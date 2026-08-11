@@ -64,5 +64,11 @@ class PackageCodecTest {
     void malformedPackageRejected() {
         assertThrows(IllegalArgumentException.class, () -> PackageCodec.unpack("garbage"));
         assertThrows(IllegalArgumentException.class, () -> PackageCodec.unpack(""));
+        // truncated input must fail with IllegalArgumentException, not
+        // ArrayIndexOutOfBoundsException (gate review P2-8)
+        PalState input = s4();
+        String pkg = PackageCodec.pack(input, "rotate", rotated());
+        String truncated = pkg.split("\n", -1)[0] + "\nchecksum:abc\npal_lines:999";
+        assertThrows(IllegalArgumentException.class, () -> PackageCodec.unpack(truncated));
     }
 }

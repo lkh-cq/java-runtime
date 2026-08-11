@@ -55,6 +55,7 @@ public final class PersistentRWorker implements AutoCloseable {
             + "  if (inherits(res, \"error\")) {\n"
             + "    cat(\"-1\\n\", sep=\"\")\n"
             + "    cat(conditionMessage(res), sep=\"\\n\")\n"
+            + "    cat(\"\\n\")   # blank terminator: Java stops reading the error frame\n"
             + "  } else {\n"
             + "    out_lines <- strsplit(format_pal(res$pal_out), \"\\n\", fixed=TRUE)[[1]]\n"
             + "    cat(length(out_lines), \"\\n\", sep=\"\")\n"
@@ -152,6 +153,12 @@ public final class PersistentRWorker implements AutoCloseable {
             // best effort
         }
         return sb.toString();
+    }
+
+    /** Force-kill the underlying R process (used when replacing a stuck worker). */
+    public void forceDestroy() {
+        closed = true;
+        proc.destroyForcibly();
     }
 
     @Override

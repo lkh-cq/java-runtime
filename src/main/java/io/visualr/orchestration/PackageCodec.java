@@ -55,33 +55,50 @@ public final class PackageCodec {
         }
         String[] lines = text.split("\n", -1);
         int idx = 0;
-        if (!lines[idx++].equals(PackageRecord.HEADER)) {
+        if (lines.length == 0 || !lines[idx].equals(PackageRecord.HEADER)) {
             throw new IllegalArgumentException("missing package header");
         }
-        if (!lines[idx].startsWith("checksum:")) {
+        idx++;
+        if (idx >= lines.length || !lines[idx].startsWith("checksum:")) {
             throw new IllegalArgumentException("missing checksum record");
         }
         String declared = lines[idx++].substring("checksum:".length());
 
-        if (!lines[idx].startsWith("pal_lines:")) {
+        if (idx >= lines.length || !lines[idx].startsWith("pal_lines:")) {
             throw new IllegalArgumentException("missing pal_lines record");
         }
-        int nPal = Integer.parseInt(lines[idx++].substring("pal_lines:".length()));
+        int nPal;
+        try {
+            nPal = Integer.parseInt(lines[idx++].substring("pal_lines:".length()));
+        } catch (NumberFormatException ex) {
+            throw new IllegalArgumentException("malformed pal_lines record");
+        }
+        if (nPal < 0 || idx + nPal > lines.length) {
+            throw new IllegalArgumentException("truncated package: pal_lines exceed input"); // gate review P2-8
+        }
         List<String> palLines = new ArrayList<>(nPal);
         for (int i = 0; i < nPal; i++) {
             palLines.add(lines[idx++]);
         }
         String palFormat = String.join("\n", palLines);
 
-        if (!lines[idx].startsWith("kernel:")) {
+        if (idx >= lines.length || !lines[idx].startsWith("kernel:")) {
             throw new IllegalArgumentException("missing kernel record");
         }
         String kernel = lines[idx++].substring("kernel:".length());
 
-        if (!lines[idx].startsWith("result_lines:")) {
+        if (idx >= lines.length || !lines[idx].startsWith("result_lines:")) {
             throw new IllegalArgumentException("missing result_lines record");
         }
-        int nResult = Integer.parseInt(lines[idx++].substring("result_lines:".length()));
+        int nResult;
+        try {
+            nResult = Integer.parseInt(lines[idx++].substring("result_lines:".length()));
+        } catch (NumberFormatException ex) {
+            throw new IllegalArgumentException("malformed result_lines record");
+        }
+        if (nResult < 0 || idx + nResult > lines.length) {
+            throw new IllegalArgumentException("truncated package: result_lines exceed input");
+        }
         List<String> resultLines = new ArrayList<>(nResult);
         for (int i = 0; i < nResult; i++) {
             resultLines.add(lines[idx++]);

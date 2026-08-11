@@ -83,7 +83,9 @@ public final class VisualRServer implements AutoCloseable {
             try (OutputStream os = ex.getResponseBody()) {
                 os.write(body);
             }
-        } catch (IllegalArgumentException ex2) {
+        } catch (RuntimeException ex2) {
+            // fail-closed errors (IllegalStateException from commit, etc.)
+            // must come back as a protocol error frame, never a bare 500
             String detail = (ex2.getMessage() == null) ? ex2.getClass().getName() : ex2.getMessage();
             byte[] body = ("-1\n" + detail).getBytes(StandardCharsets.UTF_8);
             ex.sendResponseHeaders(400, body.length);
@@ -93,12 +95,23 @@ public final class VisualRServer implements AutoCloseable {
         }
     }
 
+    /** Hard limits so a forged request cannot exhaust memory (gate review P2-2). */
+    static final int MAX_REQUEST_LINES = 4096;
+    static final int MAX_LINE_LENGTH = 1_000_000;
+
     private static Request readRequest(InputStream in) throws IOException {
         List<String> lines = new ArrayList<>();
         java.io.BufferedReader r = new java.io.BufferedReader(
                 new java.io.InputStreamReader(in, StandardCharsets.UTF_8));
         String line;
+        int count = 0;
         while ((line = r.readLine()) != null) {
+            if (++count > MAX_REQUEST_LINES) {
+                throw new IllegalArgumentException("request too large: line count exceeds " + MAX_REQUEST_LINES);
+            }
+            if (line.length() > MAX_LINE_LENGTH) {
+                throw new IllegalArgumentException("request line too long");
+            }
             lines.add(line);
         }
         if (lines.size() < 2) {
@@ -111,7 +124,7 @@ public final class VisualRServer implements AutoCloseable {
         } catch (NumberFormatException ex) {
             throw new IllegalArgumentException("malformed request: bad line count");
         }
-        if (lines.size() != 2 + n) {
+        if (n < 0 || lines.size() != 2 + n) {
             throw new IllegalArgumentException("malformed request: line count mismatch");
         }
         PalState pal = PalCodec.parse(String.join("\n", lines.subList(2, 2 + n)));

@@ -77,16 +77,19 @@ public final class PalState {
             if (k == null || k.isEmpty()) {
                 throw new IllegalArgumentException("provenance keys must be non-empty");
             }
-            if (k.indexOf('|') >= 0) {
-                throw new IllegalArgumentException("provenance keys must not contain '|'");
+            if (k.indexOf('|') >= 0 || k.indexOf('=') >= 0) {
+                // '=' would make the key=value record ambiguous (gate review P2-5)
+                throw new IllegalArgumentException("provenance keys must not contain '|' or '='");
             }
             if (!(v instanceof Integer || v instanceof Double || v instanceof Boolean
                     || v instanceof String)) {
                 throw new IllegalArgumentException(
                         "provenance values must be atomic (Integer/Double/Boolean/String)");
             }
-            if (v instanceof String s && s.indexOf('|') >= 0) {
-                throw new IllegalArgumentException("provenance string values must not contain '|'");
+            if (v instanceof String s && (s.indexOf('|') >= 0 || s.indexOf('\n') >= 0)) {
+                // '|' breaks the idx|key record; '\n' breaks the line framing
+                throw new IllegalArgumentException(
+                        "provenance string values must not contain '|' or newline");
             }
         }
         return new PalState(shells, core, mappingPackId, provenance);

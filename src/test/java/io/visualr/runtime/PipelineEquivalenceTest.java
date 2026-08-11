@@ -25,7 +25,9 @@ import org.junit.jupiter.api.Test;
  */
 class PipelineEquivalenceTest {
 
-    private static final String R_PACKAGE = "/mnt/d/visualR/visualR";
+    /** R package root; override via env visualR_R_PACKAGE (CI clones elsewhere). */
+    private static final String R_PACKAGE =
+            System.getenv().getOrDefault("visualR_R_PACKAGE", "/mnt/d/visualR/visualR");
 
     private static final String SEP = "@@RS@@";
 
@@ -46,7 +48,8 @@ class PipelineEquivalenceTest {
             if (code != 0) {
                 fail("Rscript exited " + code + ":\n" + out);
             }
-            return out.toString();
+            // strip only the trailing newline the reader added (never trim content)
+            return out.toString().replaceFirst("\n$", "");
         } catch (IOException | InterruptedException e) {
             throw new AssertionError("Rscript unavailable: " + e.getMessage(), e);
         }
@@ -70,7 +73,7 @@ class PipelineEquivalenceTest {
 
     @Test
     void pipelineReencodedPalByteMatchesR() {
-        String rOut = runR(R_PIPELINE).trim();
+        String rOut = runR(R_PIPELINE);
         String[] rSamples = rOut.split(java.util.regex.Pattern.quote(SEP));
         assertEquals(6, rSamples.length, "R must emit 6 samples");
 
@@ -78,10 +81,10 @@ class PipelineEquivalenceTest {
         PalState p1 = PalState.of(List.of("A", "B", "C", "D"), "e",
                 PalState.DEFAULT_MAPPING_PACK_ID, Map.of());
         PipelineResult j1 = TopologyOperator.runPipeline(p1);
-        assertEquals(rSamples[0].trim(), "promote|idle", "R S4 reconcile");
+        assertEquals(rSamples[0], "promote|idle", "R S4 reconcile");
         assertEquals("promote", j1.reconciled().action());
         assertEquals("idle", j1.reconciled().phase());
-        assertEquals(rSamples[1].trim(), PalCodec.format(j1.palOut()),
+        assertEquals(rSamples[1], PalCodec.format(j1.palOut()),
                 "S4 re-encoded PAL must byte-match R");
 
         // S5 identity pipeline (dynamic lanes A/B/C/D/E + e — execute_lanes_ops
@@ -89,8 +92,8 @@ class PipelineEquivalenceTest {
         PalState p2 = PalState.of(List.of("A", "B", "C", "D", "E"), "F",
                 PalState.DEFAULT_MAPPING_PACK_ID, Map.of());
         PipelineResult j2 = TopologyOperator.runPipeline(p2);
-        assertEquals(rSamples[2].trim(), "promote|idle", "R S5 reconcile");
-        assertEquals(rSamples[3].trim(), PalCodec.format(j2.palOut()),
+        assertEquals(rSamples[2], "promote|idle", "R S5 reconcile");
+        assertEquals(rSamples[3], PalCodec.format(j2.palOut()),
                 "S5 re-encoded PAL must byte-match R");
         // dynamic lanes keep all five shells (Branch-1 audit 2026-08-09)
         assertEquals(5, j2.palOut().shells().size(),
@@ -98,8 +101,8 @@ class PipelineEquivalenceTest {
 
         // rotate kernel pipeline: S4 with kernel-name spec
         PipelineResult j3 = TopologyOperator.runPipeline(p1, "rotate");
-        assertEquals(rSamples[4].trim(), "promote|idle", "R rotate reconcile");
-        assertEquals(rSamples[5].trim(), PalCodec.format(j3.palOut()),
+        assertEquals(rSamples[4], "promote|idle", "R rotate reconcile");
+        assertEquals(rSamples[5], PalCodec.format(j3.palOut()),
                 "rotate re-encoded PAL must byte-match R");
         // rotate advances each shell token one step on the A->B->C->D->A cycle
         assertEquals(List.of("B", "C", "D", "A"), j3.palOut().shells());
