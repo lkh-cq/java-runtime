@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      VISUALR_REPO: ${{ vars.VISUALR_REPO || 'https://github.com/yukikaze404/visualR.git' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 21 (Temurin)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Set up R + pkgload (for R-equivalence gates)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends r-base
+          Rscript -e 'install.packages("pkgload", repos="https://cloud.r-project.org", quiet=TRUE)'
+
+      - name: Checkout visualR reference package
+        run: |
+          git clone --depth 1 "$VISUALR_REPO" /tmp/visualR
+          echo "visualR_R_PACKAGE=/tmp/visualR/visualR" >> "$GITHUB_ENV"
+
+      - name: Maven build + tests
+        run: mvn -B test
+
+      - name: Upload surefire reports on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: surefire-reports
+          path: target/surefire-reports/
