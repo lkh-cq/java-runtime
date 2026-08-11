@@ -40,8 +40,8 @@
 
 ## 待办(下一刀)
 
-- [ ] CI 推送:.github/workflows/ci.yml 已备(JDK21+R+pkgload),推送需 `gh auth refresh --scopes workflow`(手动)后 push
-- [ ] 网络传输/包路由(DEVELOPMENT_PLAN §8 剩余职责,部署环境依赖)
+- [ ] CI 触发验证(GitHub Actions 状态,可能需用户启用)
+- [ ] 网络传输(HTTP 服务层,§8 剩余职责,部署环境依赖)
 
 ## 远程(2026-08-10)
 
